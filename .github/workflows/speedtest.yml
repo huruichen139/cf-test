@@ -5,6 +5,9 @@ on:
     - cron: '0 0 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   speed-test:
     runs-on: ubuntu-latest
@@ -13,9 +16,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GH_TOKEN }}
-          persist-credentials: false
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -34,5 +34,4 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add ip.txt ipv6.txt
-          git commit -m "Update IP list [skip ci]" || echo "No changes to commit"
-          git push https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/huruichen139/cf-test.git master
+          git diff --cached --quiet || (git commit -m "Update IP list [skip ci]" && git push)
