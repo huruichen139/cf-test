@@ -29,10 +29,27 @@ jobs:
         run: |
           go run . -n 200 -t 4 -dn 10 -dt 10 -tp 443 -f ip_ranges.txt -o ip.txt -dd
 
-      - name: Upload ip.txt via API
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          CONTENT=$(base64 -w 0 ip.txt)
-          SHA=$(curl -s -H "Authorization: token $GH_TOKEN" -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/${{ github.repository }}/contents/ip.txt" | python3 -c "import sys,json; print(json.load(sys.stdin)['sha'])")
-          curl -s -X PUT -H "Authorization: token $GH_TOKEN" -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/${{ github.repository }}/contents/ip.txt" -d "{\"message\":\"Update IP list [skip ci]\",\"content\":\"$CONTENT\",\"sha\":\"$SHA\"}"
+      - name: Upload ip.txt
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const content = fs.readFileSync('ip.txt', 'utf8');
+            const encoded = Buffer.from(content).toString('base64');
+            
+            const { data: file } = await github.rest.repos.getContent({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              path: 'ip.txt'
+            });
+            
+            await github.rest.repos.createOrUpdateFileContents({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              path: 'ip.txt',
+              message: 'Update IP list [skip ci]',
+              content: encoded,
+              sha: file.sha
+            });
+            
+            console.log('ip.txt uploaded successfully');
