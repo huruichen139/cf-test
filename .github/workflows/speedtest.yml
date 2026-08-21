@@ -27,7 +27,7 @@ jobs:
 
       - name: Run Cloudflare Speed Test
         run: |
-          go run . -n 200 -t 4 -dn 10 -dt 10 -tp 443 -f ip_ranges.txt -o ip.txt -dd
+          go run . -n 200 -t 4 -dn 10 -dt 10 -tp 443 -f ip_ranges.txt -o ip.txt -dd -p 0
 
       - name: Upload ip.txt
         uses: actions/github-script@v7
