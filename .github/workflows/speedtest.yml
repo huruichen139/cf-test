@@ -2,9 +2,8 @@ name: Cloudflare Speed Test
 
 on:
   schedule:
-    # 每天北京时间 8:00 运行 (UTC 00:00)
     - cron: '0 0 * * *'
-  workflow_dispatch:  # 允许手动触发
+  workflow_dispatch:
 
 jobs:
   speed-test:
@@ -36,4 +35,4 @@ jobs:
           git config --local user.name "GitHub Action"
           git add ip.txt ipv6.txt
           git commit -m "Update IP list [skip ci]" || echo "No changes to commit"
-          git push https://huruichen139:${{ secrets.GH_TOKEN }}@github.com/huruichen139/cf.git master
+          git push https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/huruichen139/cf.git master
