@@ -9,13 +9,14 @@ on:
 jobs:
   speed-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 45  # 设置45分钟超时，足够完成测试
+    timeout-minutes: 45
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GH_TOKEN }}
+          persist-credentials: false
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -25,16 +26,9 @@ jobs:
       - name: Install dependencies
         run: go mod download
 
-      - name: Run Cloudflare Speed Test (All IPs)
+      - name: Run Cloudflare Speed Test
         run: |
-          # 测试全部 IP，超时2秒
           go run . -t 2 -p 443 -f ip.txt -o ip.txt
-
-      - name: Upload results
-        uses: actions/upload-artifact@v4
-        with:
-          name: speed-test-results
-          path: ip.txt
 
       - name: Commit and push changes
         run: |
@@ -42,4 +36,4 @@ jobs:
           git config --local user.name "GitHub Action"
           git add ip.txt ipv6.txt
           git commit -m "Update IP list [skip ci]" || echo "No changes to commit"
-          git push
+          git push https://huruichen139:${{ secrets.GH_TOKEN }}@github.com/huruichen139/cf.git master
