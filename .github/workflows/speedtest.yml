@@ -27,7 +27,7 @@ jobs:
 
       - name: Run Cloudflare Speed Test
         run: |
-          go run . -t 2 -p 443 -f ip.txt -o ip.txt
+          go run . -n 200 -t 4 -dn 10 -dt 10 -tp 443 -f ip.txt -o ip.txt -dd
 
       - name: Upload ip.txt via API
         env:
