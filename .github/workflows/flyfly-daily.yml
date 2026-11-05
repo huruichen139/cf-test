@@ -1,0 +1,38 @@
+name: Daily FlyFly IP check
+
+on:
+  schedule:
+    # 06:00 China Standard Time (UTC+8)
+    - cron: "0 22 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flyfly-daily-ip-check
+  cancel-in-progress: false
+
+jobs:
+  check-and-import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+
+      - name: Download Go dependencies
+        run: go mod download
+
+      - name: Test automation
+        run: python3 -m unittest discover -s script
+
+      - name: Test and replace FlyFly IP list
+        env:
+          FLYFLY_ADMIN_PASSWORD: ${{ secrets.FLYFLY_ADMIN_PASSWORD }}
+        run: python3 script/flyfly_daily.py

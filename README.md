@@ -21,6 +21,12 @@
 > Cloudflare CDN 已**明文禁止代理**方式使用，对于**代理套 CDN** 的自行承担风险，请勿过度依赖 [#382](https://github.com/XIU2/CloudflareSpeedTest/discussions/382) [#383](https://github.com/XIU2/CloudflareSpeedTest/discussions/383)
 
 ****
+## FlyFly 每日测速与导入
+
+仓库中的 `Daily FlyFly IP check` 工作流每天北京时间 **06:00** 运行，也可在 GitHub Actions 中手动触发。它只检查 FlyFly 当前 `/admin/ADD.txt` 清单中的 IP，不会遍历整个 Cloudflare CIDR 网段；先筛选到 FlyFly 登录页的平均延迟不超过 200 ms 的地址，再通过 FlyFly 当前 VLESS/WebSocket 节点逐个检测 YouTube 和 TikTok。只有通过全部检测的 IP 才会替换导入清单；若没有 IP 通过或任务报错，原清单保持不变。
+
+首次运行前，在仓库 **Settings → Secrets and variables → Actions** 添加 `FLYFLY_ADMIN_PASSWORD` 密钥。不要把管理密码写入代码或工作流。导入名称按 Cloudflare colo 映射为中文地区名和序号（例如 `台湾一`），不会包含测速速度。此流程依赖面板保持 VLESS over WebSocket 配置。
+
 ## \# 快速使用
 
 ### 下载运行
