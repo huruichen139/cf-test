@@ -40,6 +40,7 @@ SING_BOX_WINDOWS_URL = (
 SING_BOX_WINDOWS_SHA256 = "99185d75d314a07dbba4a130c8ad986cbeb629a07927975636b341ca61f991df"
 MAX_CANDIDATES = 5000
 BATCH_SIZE = 25
+SING_BOX_START_ATTEMPTS = 3
 YOUTUBE_URL = "https://www.youtube.com/generate_204"
 TIKTOK_URL = "https://www.tiktok.com/robots.txt"
 TEST_URLS = (YOUTUBE_URL, TIKTOK_URL)
@@ -260,6 +261,21 @@ def reserve_local_port():
         return listener.getsockname()[1]
 
 
+def reserve_local_ports(count):
+    ports = []
+    seen = set()
+    for _ in range(count * 10):
+        if len(ports) == count:
+            break
+        port = reserve_local_port()
+        if port not in seen:
+            ports.append(port)
+            seen.add(port)
+    if len(ports) != count:
+        raise RuntimeError("Could not reserve unique local proxy ports")
+    return ports
+
+
 def make_sing_box_config(candidates, settings):
     inbounds, outbounds, rules = [], [], []
     for candidate in candidates:
@@ -322,6 +338,65 @@ def wait_for_inbounds(process, ports, timeout=15):
         raise RuntimeError("sing-box did not open all local proxy listeners")
 
 
+def stop_sing_box(process):
+    if process.poll() is None:
+        process.terminate()
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait()
+
+
+def start_sing_box_batch(sing_box, batch, settings, config_path):
+    for attempt in range(1, SING_BOX_START_ATTEMPTS + 1):
+        for index, (candidate, local_port) in enumerate(
+            zip(batch, reserve_local_ports(len(batch)))
+        ):
+            candidate["index"] = index
+            candidate["local_port"] = local_port
+
+        config_path.write_text(
+            json.dumps(make_sing_box_config(batch, settings)),
+            encoding="utf-8",
+        )
+        check = subprocess.run(
+            [sing_box, "check", "-c", str(config_path)],
+            capture_output=True, text=True, check=False,
+        )
+        if check.returncode != 0:
+            detail = (check.stderr or check.stdout).strip()
+            raise RuntimeError(
+                "sing-box rejected the generated FlyFly proxy configuration"
+                + (f": {detail[-1000:]}" if detail else "")
+            )
+
+        error_log = tempfile.TemporaryFile()
+        process = subprocess.Popen(
+            [sing_box, "run", "-c", str(config_path)],
+            stdout=subprocess.DEVNULL, stderr=error_log,
+        )
+        try:
+            wait_for_inbounds(
+                process, [candidate["local_port"] for candidate in batch]
+            )
+            return process, error_log
+        except RuntimeError as error:
+            stop_sing_box(process)
+            error_log.seek(0)
+            detail = error_log.read().decode("utf-8", "replace").strip()
+            error_log.close()
+            if attempt == SING_BOX_START_ATTEMPTS:
+                raise RuntimeError(
+                    f"{error}; sing-box stderr: {detail[-1000:] or '(empty)'}"
+                ) from None
+            print(
+                f"sing-box batch startup failed ({attempt}/"
+                f"{SING_BOX_START_ATTEMPTS}); retrying with fresh ports"
+            )
+    raise RuntimeError("sing-box batch could not be started")
+
+
 def probe_url(port, url):
     try:
         result = subprocess.run(
@@ -348,27 +423,11 @@ def test_through_nodes(sing_box, candidates, settings, workdir):
     verified = []
     for start in range(0, len(candidates), BATCH_SIZE):
         batch = candidates[start:start + BATCH_SIZE]
-        for index, candidate in enumerate(batch):
-            candidate["index"] = index
-            candidate["local_port"] = reserve_local_port()
         config_path = workdir / "sing-box.json"
-        config_path.write_text(
-            json.dumps(make_sing_box_config(batch, settings)),
-            encoding="utf-8",
-        )
-        check = subprocess.run(
-            [sing_box, "check", "-c", str(config_path)],
-            capture_output=True, text=True, check=False,
-        )
-        if check.returncode != 0:
-            raise RuntimeError("sing-box rejected the generated FlyFly proxy configuration")
-
-        process = subprocess.Popen(
-            [sing_box, "run", "-c", str(config_path)],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        process, error_log = start_sing_box_batch(
+            sing_box, batch, settings, config_path
         )
         try:
-            wait_for_inbounds(process, [candidate["local_port"] for candidate in batch])
             with ThreadPoolExecutor(
                 max_workers=BATCH_SIZE * len(TEST_URLS)
             ) as executor:
@@ -382,12 +441,8 @@ def test_through_nodes(sing_box, candidates, settings, workdir):
                     if all(future.result() for future in candidate["site_results"]):
                         verified.append(candidate)
         finally:
-            process.terminate()
-            try:
-                process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait()
+            stop_sing_box(process)
+            error_log.close()
         print(
             f"Proxy checks complete: {min(start + len(batch), len(candidates))}/"
             f"{len(candidates)} candidates; {len(verified)} passed so far"
