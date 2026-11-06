@@ -1,9 +1,11 @@
 import json
 import os
+import tempfile
 import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from unittest.mock import patch
+from pathlib import Path
 
 from flyfly_daily import (
     FlyFlyClient,
@@ -13,6 +15,8 @@ from flyfly_daily import (
     parse_candidate,
     probe_url,
     read_node_settings,
+    reserve_local_ports,
+    start_sing_box_batch,
 )
 
 
@@ -55,6 +59,40 @@ class CandidateTests(unittest.TestCase):
         run.return_value.stdout = "204"
         self.assertTrue(probe_url(1080, "https://example.com"))
         self.assertEqual(run.call_args.args[0][4], os.devnull)
+
+    @patch("flyfly_daily.reserve_local_port", side_effect=[31001, 31001, 31002, 31003])
+    def test_batch_ports_are_unique(self, reserve_port):
+        self.assertEqual(reserve_local_ports(3), [31001, 31002, 31003])
+        self.assertEqual(reserve_port.call_count, 4)
+
+    @patch("flyfly_daily.reserve_local_ports", side_effect=[[31001], [31002]])
+    @patch("flyfly_daily.stop_sing_box")
+    @patch("flyfly_daily.wait_for_inbounds", side_effect=[RuntimeError("startup failed"), None])
+    @patch("flyfly_daily.subprocess.Popen")
+    @patch("flyfly_daily.subprocess.run")
+    def test_batch_start_retries_with_fresh_ports(
+        self, run, popen, wait_for_inbounds, stop_sing_box, reserve_ports
+    ):
+        run.return_value.returncode = 0
+        batch = [{"ip": "104.24.0.1", "port": 443}]
+        settings = {
+            "host": "flyfly.kdns.fr",
+            "uuid": "00000000-0000-4000-8000-000000000000",
+            "path": "/ws",
+            "insecure": False,
+            "fingerprint": "chrome",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            process, error_log = start_sing_box_batch(
+                "sing-box", batch, settings, Path(directory) / "config.json"
+            )
+            error_log.close()
+
+        self.assertIs(process, popen.return_value)
+        self.assertEqual(popen.call_count, 2)
+        self.assertEqual(batch[0]["local_port"], 31002)
+        stop_sing_box.assert_called_once_with(process)
+        self.assertEqual(reserve_ports.call_count, 2)
 
 
 class FlyFlyConfigTests(unittest.TestCase):
