@@ -460,39 +460,19 @@ def country_name(colo):
     return COLO_COUNTRIES.get(colo, "其他")
 
 
-def chinese_number(number):
-    digits = "零一二三四五六七八九"
-    units = ("", "十", "百", "千")
-    if not 0 < number < 10000:
-        raise ValueError("node sequence is outside the supported range")
-    parts = []
-    zero_pending = False
-    for position in range(3, -1, -1):
-        divisor = 10 ** position
-        digit, number = divmod(number, divisor)
-        if digit:
-            if zero_pending:
-                parts.append("零")
-                zero_pending = False
-            if not (position == 1 and digit == 1 and not parts):
-                parts.append(digits[digit])
-            parts.append(units[position])
-        elif parts and number:
-            zero_pending = True
-    return "".join(parts)
-
-
 def format_import_lines(candidates):
     counters = {}
     lines = []
-    for candidate in sorted(candidates, key=lambda item: (item["colo"], item["delay"], item["ip"])):
+    for candidate in sorted(
+        candidates, key=lambda item: (item["delay"], item["ip"])
+    ):
         country = country_name(candidate["colo"])
         counters[country] = counters.get(country, 0) + 1
         address = candidate["ip"]
         if ":" in address:
             address = f"[{address}]"
         lines.append(
-            f"{address}:{candidate['port']}#{country}{chinese_number(counters[country])}"
+            f"{address}:{candidate['port']}#{country} {counters[country]}"
         )
     return lines
 
