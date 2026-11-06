@@ -43,7 +43,8 @@ BATCH_SIZE = 25
 SING_BOX_START_ATTEMPTS = 3
 YOUTUBE_URL = "https://www.youtube.com/generate_204"
 TIKTOK_URL = "https://www.tiktok.com/robots.txt"
-TEST_URLS = (YOUTUBE_URL, TIKTOK_URL)
+GITHUB_URL = "https://github.com/robots.txt"
+TEST_URLS = (YOUTUBE_URL, TIKTOK_URL, GITHUB_URL)
 
 COLO_COUNTRIES = {
     "TPE": "台湾", "KHH": "台湾", "TSA": "台湾",

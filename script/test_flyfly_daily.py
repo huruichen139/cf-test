@@ -9,6 +9,8 @@ from pathlib import Path
 
 from flyfly_daily import (
     FlyFlyClient,
+    GITHUB_URL,
+    TEST_URLS,
     format_import_lines,
     make_sing_box_config,
     parse_candidate,
@@ -20,6 +22,9 @@ from flyfly_daily import (
 
 
 class CandidateTests(unittest.TestCase):
+    def test_github_is_included_in_proxy_connectivity_checks(self):
+        self.assertIn(GITHUB_URL, TEST_URLS)
+
     def test_parse_ipv4_candidate_with_comment(self):
         self.assertEqual(
             parse_candidate("104.24.0.232:443#old label"),

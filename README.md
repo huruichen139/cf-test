@@ -23,7 +23,7 @@
 ****
 ## FlyFly 每日测速与导入
 
-仓库中的 `Daily FlyFly IP check` 工作流每天北京时间 **06:00** 运行，也可在 GitHub Actions 中手动触发。它只检查 FlyFly 当前 `/admin/ADD.txt` 清单中的 IP，不会遍历整个 Cloudflare CIDR 网段；先筛选到 FlyFly 登录页的平均延迟不超过 200 ms 的地址，再通过 FlyFly 当前 VLESS/WebSocket 节点逐个检测 YouTube 和 TikTok。只有通过全部检测的 IP 才会替换导入清单；若没有 IP 通过或任务报错，原清单保持不变。
+仓库中的 `Daily FlyFly IP check` 工作流每天北京时间 **06:00** 运行，也可在 GitHub Actions 中手动触发。它只检查 FlyFly 当前 `/admin/ADD.txt` 清单中的 IP，不会遍历整个 Cloudflare CIDR 网段；先筛选到 FlyFly 登录页的平均延迟不超过 200 ms 的地址，再通过 FlyFly 当前 VLESS/WebSocket 节点逐个检测 YouTube、TikTok 和 GitHub。只有通过全部检测的 IP 才会替换导入清单；若没有 IP 通过或任务报错，原清单保持不变。此检测从 GitHub Actions 网络发出，不能代表你本地 Clash/Mihomo 的分流和线路结果。
 
 首次运行前，在仓库 **Settings → Secrets and variables → Actions** 添加 `FLYFLY_ADMIN_PASSWORD` 密钥。不要把管理密码写入代码或工作流。导入结果按平均延迟从低到高排列，名称按 Cloudflare colo 映射为中文地区名及阿拉伯数字（例如 `台湾 1`），不会包含测速速度。Cloudflare IP 使用 Anycast，地区码表示本次测试实际命中的边缘机房；GitHub Actions 通常从美国区域运行，因此结果可能大多或全部显示为美国，这不代表 IP 只属于美国。此流程依赖面板保持 VLESS over WebSocket 配置。
 
