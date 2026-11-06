@@ -9,7 +9,8 @@ from pathlib import Path
 
 from flyfly_daily import (
     FlyFlyClient,
-    chinese_number,
+    GITHUB_URL,
+    TEST_URLS,
     format_import_lines,
     make_sing_box_config,
     parse_candidate,
@@ -21,6 +22,9 @@ from flyfly_daily import (
 
 
 class CandidateTests(unittest.TestCase):
+    def test_github_is_included_in_proxy_connectivity_checks(self):
+        self.assertIn(GITHUB_URL, TEST_URLS)
+
     def test_parse_ipv4_candidate_with_comment(self):
         self.assertEqual(
             parse_candidate("104.24.0.232:443#old label"),
@@ -39,19 +43,19 @@ class CandidateTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             parse_candidate("104.24.0.232:70000")
 
-    def test_names_are_chinese_and_do_not_include_speed(self):
+    def test_names_use_arabic_numbers_and_global_latency_order(self):
         lines = format_import_lines([
-            {"ip": "104.24.0.2", "port": 443, "colo": "TPE", "delay": 12.5},
-            {"ip": "104.24.0.1", "port": 443, "colo": "KHH", "delay": 10.1},
+            {"ip": "104.24.0.3", "port": 443, "colo": "TPE", "delay": 12.5},
+            {"ip": "104.24.0.2", "port": 443, "colo": "LAX", "delay": 10.1},
+            {"ip": "104.24.0.1", "port": 443, "colo": "KHH", "delay": 8.2},
         ])
         self.assertEqual(lines, [
-            "104.24.0.1:443#台湾一",
-            "104.24.0.2:443#台湾二",
+            "104.24.0.1:443#台湾 1",
+            "104.24.0.2:443#美国 1",
+            "104.24.0.3:443#台湾 2",
         ])
         self.assertNotIn("ms", "\n".join(lines))
         self.assertNotIn("MB/s", "\n".join(lines))
-        self.assertEqual(chinese_number(21), "二十一")
-        self.assertEqual(chinese_number(1001), "一千零一")
 
     @patch("flyfly_daily.subprocess.run")
     def test_site_probe_uses_platform_null_device(self, run):
